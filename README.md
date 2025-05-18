@@ -1,14 +1,16 @@
 # glsl-int README
 
-This is the README for your extension "glsl-int". After writing up a brief description, we recommend including the following sections.
+This extension depends on [glsl_analyzer](https://github.com/nolanderc/glsl_analyzer) and:
+
+- Does not bundle its binaries in any published form.
+- Calls its binaries via spawned child processes (mere use).
+
+This VSCode extension is licensed under the GNU General Public License v3.0.  
+It calls external binaries also licensed under GPLv3, which must be installed separately.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
+TBD
 
 > Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
 
