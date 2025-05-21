@@ -1,12 +1,26 @@
-# glsl-int README
+# glsl-in3 README
 
-This extension depends on [glsl_analyzer](https://github.com/nolanderc/glsl_analyzer) and:
+**glsl-in3** is an experimental Visual Studio Code extension for learning and prototyping.  
+It aims to provide GLSL (OpenGL Shading Language) syntax highlighting and IntelliSense support, with a focus on integration with [three.js](https://threejs.org/).
 
-- Does not bundle its binaries in any published form.
-- Calls its binaries via spawned child processes (mere use).
+This project is in active development and not yet ready for production use, and may never be.
 
-This VSCode extension is licensed under the GNU General Public License v3.0.  
-It calls external binaries also licensed under GPLv3, which must be installed separately.
+## License
+
+This extension is licensed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.html).
+
+During development, this extension calls external command-line tools (official released binaries) licensed under GPLv3, which are included in the ./bin/ folder for convenience. These binaries are not bundled or distributed with the published extension.
+
+## Third-Party Binaries
+
+This extension uses the following third-party tools:
+
+- **glslangValidator** (GPLv3) — from [Khronos glslang](https://github.com/KhronosGroup/glslang)
+- **glsl_analyzer** (GPLv3) — from [glsl_analyzer](https://github.com/nolanderc/glsl_analyzer)
+
+Each binary's corresponding license can be found in the `bin/LICENSES/` folder.
+
+By using this extension, you acknowledge and accept the GPLv3 license terms for these components.
 
 ## Features
 
@@ -56,14 +70,6 @@ Added features X, Y, and Z.
 Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
 
 * [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
 
 ## For more information
 

@@ -1,0 +1,8 @@
+glslangValidator is licensed under the BSD 3-Clause License, which is compatible with the GNU General Public License v3.0.
+
+Copyright (c) The Khronos Group Inc.
+
+Source code: https://github.com/KhronosGroup/glslang  
+License text: https://github.com/KhronosGroup/glslang/blob/main/LICENSE.txt
+
+This binary is redistributed in accordance with its original license and is used within this extension under the terms of the GPLv3.

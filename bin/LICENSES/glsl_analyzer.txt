@@ -1,0 +1,9 @@
+glsl_analyzer is licensed under the GNU General Public License version 3.0 (GPLv3).
+
+Copyright (C) 2007 Free Software Foundation, Inc.  
+https://fsf.org/
+
+Source code: https://github.com/nolanderc/glsl_analyzer  
+Full license text: https://github.com/nolanderc/glsl_analyzer/blob/main/LICENSE.md
+
+This binary is redistributed under the terms of the GPLv3.
