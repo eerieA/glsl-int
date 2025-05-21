@@ -9,13 +9,13 @@ This project is in active development and not yet ready for production use, and 
 
 This extension is licensed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.html).
 
-During development, this extension calls external command-line tools (official released binaries) licensed under GPLv3, which are included in the ./bin/ folder for convenience. These binaries are not bundled or distributed with the published extension.
+During development, this extension calls external command-line tools (official released binaries) licensed under GPLv3 or GPLv3-compatible, which are included in the ./bin/ folder for convenience. These binaries are not bundled or distributed with the published extension.
 
 ## Third-Party Binaries
 
 This extension uses the following third-party tools:
 
-- **glslangValidator** (GPLv3) — from [Khronos glslang](https://github.com/KhronosGroup/glslang)
+- **glslangValidator** (BSD 3-Clause) — from [Khronos glslang](https://github.com/KhronosGroup/glslang)
 - **glsl_analyzer** (GPLv3) — from [glsl_analyzer](https://github.com/nolanderc/glsl_analyzer)
 
 Each binary's corresponding license can be found in the `bin/LICENSES/` folder.
@@ -75,5 +75,3 @@ Ensure that you've read through the extensions guidelines and follow the best pr
 
 * [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
 * [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
