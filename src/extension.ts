@@ -10,6 +10,11 @@ import {
 	TransportKind
 } from 'vscode-languageclient/node';
 
+import { DebounceManager } from './utils/debounceManager';
+
+const DEBOUNCE_DELAY = 500; // ms
+const VALIDATOR_KILL_TIMEOUT = 5000;
+
 function getBinaryPath(tool: 'glsl_analyzer' | 'glslangValidator'): string {
 	const platform = process.platform; // 'win32', 'darwin', 'linux'
 	const arch = process.arch;         // 'x64', 'arm64'
@@ -56,10 +61,10 @@ function getBinaryPath(tool: 'glsl_analyzer' | 'glslangValidator'): string {
 	return path.join('bin', toolDir, binaryName);
 }
 
-function validateGLSLDocument(document: vscode.TextDocument, parentPath: string, diagnosticCollection: vscode.DiagnosticCollection, needTmp: boolean = false) {
+function validateGLSLDocument(document: vscode.TextDocument, extensionPath: string, diagnosticCollection: vscode.DiagnosticCollection, needTmp: boolean = false) {
 	let filePath = document.fileName;
 	const validatorPath = getBinaryPath('glslangValidator');
-	const validatorFullPath = path.join(parentPath, validatorPath);
+	const validatorFullPath = path.join(extensionPath, validatorPath);
 	// console.log(`validatorFullPath: ${validatorFullPath}`);
 
 	// if need temp file, like on document change but not save, save a temp file
@@ -93,31 +98,41 @@ function validateGLSLDocument(document: vscode.TextDocument, parentPath: string,
 
 function validateGLSLDocumentViaStdin(
 	document: vscode.TextDocument,
-	parentPath: string,
-	diagnosticCollection: vscode.DiagnosticCollection
+	extensionPath: string,
+	diagnosticCollection: vscode.DiagnosticCollection,
+	killTimeout: number
 ) {
 	const text = document.getText();
 	const validatorPath = getBinaryPath('glslangValidator');
-	const validatorFullPath = path.join(parentPath, validatorPath);
+	const validatorFullPath = path.join(extensionPath, validatorPath);
 	const shaderStage = guessShaderStage(document.fileName);
 
 	// --stdin tells glslangValidator to read from stdin
 	// also --stdin requires -S, so it has to be before -S
 	const args = ['--stdin', '-S', shaderStage];
-	console.log(`args: ${args}`);
 	const proc = cp.spawn(validatorFullPath, args);
+
+	// A killer function to kill the child proc if taken too long
+	const killTimer = setTimeout(() => {
+		if (!proc.killed) {
+			console.warn('Killing glslangValidator process due to timeout');
+			proc.kill();
+		}
+	}, killTimeout);
 
 	let output = '';
 	proc.stdout.on('data', data => output += data.toString());
 	proc.stderr.on('data', data => output += data.toString());
 
 	proc.on('close', (code) => {
+		clearTimeout(killTimer);
 		console.log(`glslangValidator exited with code ${code}`);
 		console.log(`glslangValidator output ${output}`);
 		processValidatorOutput(document, output, diagnosticCollection);
 	});
 
 	proc.on('error', (err) => {
+		clearTimeout(killTimer);
 		console.error('Failed to start glslangValidator process:', err);
 		vscode.window.showErrorMessage(`glslangValidator failed: ${err.message}`);
 	});
@@ -156,9 +171,6 @@ function processValidatorOutput(
 
 	diagnosticCollection.set(document.uri, diagnostics);
 }
-
-const validateTimeouts = new Map<string, NodeJS.Timeout>();
-const DEBOUNCE_DELAY = 500; // ms
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -214,6 +226,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const diagnosticCollection = vscode.languages.createDiagnosticCollection('glsl');
 	context.subscriptions.push(diagnosticCollection);
+	const debounceManager = new DebounceManager(DEBOUNCE_DELAY);
+	context.subscriptions.push(debounceManager);
 
 	// Validate all open GLSL files at startup
 	vscode.workspace.textDocuments.forEach((doc) => {
@@ -241,21 +255,17 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	);
 
-	// Validate on current file changed
+	// Validate on current file changed, with debouncing to reduce the frequency of validation calls
 	context.subscriptions.push(
 		vscode.workspace.onDidChangeTextDocument((e) => {
 			const doc = e.document;
 			if (doc.languageId !== 'glsl') return;
 
-			// debounce per‐document
-			const key = doc.uri.toString();
-			if (validateTimeouts.has(key)) {
-				clearTimeout(validateTimeouts.get(key)!);
-			}
-			validateTimeouts.set(key, setTimeout(() => {
-				validateGLSLDocumentViaStdin(doc, context.extensionPath, diagnosticCollection);
-				validateTimeouts.delete(key);
-			}, DEBOUNCE_DELAY));
+			// This will lookup the current file's timer in a timer array, reset it and
+			// callback the validate GLSL function with approprieate arguments
+			debounceManager.debounce(doc.uri.toString(), () => {
+				validateGLSLDocumentViaStdin(doc, context.extensionPath, diagnosticCollection, VALIDATOR_KILL_TIMEOUT);
+			});
 		})
 	);
 }
