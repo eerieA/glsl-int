@@ -3,63 +3,13 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as cp from 'child_process';
-import {
-	LanguageClient,
-	LanguageClientOptions,
-	ServerOptions,
-	TransportKind
-} from 'vscode-languageclient/node';
 
+import { getBinaryPath } from './utils/utils';
 import { DebounceManager } from './utils/debounceManager';
+import { startLangClient, getClient, stopLangClient } from './langClient';
 
 const DEBOUNCE_DELAY = 500; // ms
 const VALIDATOR_KILL_TIMEOUT = 5000;
-
-function getBinaryPath(tool: 'glsl_analyzer' | 'glslangValidator'): string {
-	const platform = process.platform; // 'win32', 'darwin', 'linux'
-	const arch = process.arch;         // 'x64', 'arm64'
-
-	console.log(`Detected platform: ${platform}, architecture: ${arch}`);
-
-	// Arch and platform mappings
-	const archMap: Record<string, string> = {
-		'x64': 'x86_64',
-		'arm64': 'aarch64'
-	};
-
-	const platMap: Record<string, string> = {
-		'win32': 'windows',
-		'darwin': 'macos',
-		'linux': 'linux'
-	};
-
-	const toolDir = tool; // matches folder name
-	const toolName = tool; // base of binary file
-
-	const archStr = archMap[arch];
-	const platStr = platMap[platform];
-	const ext = platform === 'win32' ? '.exe' : '';
-
-	if (!archStr && tool === 'glsl_analyzer') {
-		throw new Error(`Unsupported architecture for glsl_analyzer: ${arch}`);
-	}
-
-	if (!platStr) {
-		throw new Error(`Unsupported platform: ${platform}`);
-	}
-
-	let binaryName: string;
-
-	if (tool === 'glsl_analyzer') {
-		// e.g. glsl_analyzer-x86_64-windows.exe
-		binaryName = `${toolName}-${archStr}-${platStr}${ext}`;
-	} else {
-		// e.g. glslangValidator-windows.exe
-		binaryName = `${toolName}-${platStr}${ext}`;
-	}
-
-	return path.join('bin', toolDir, binaryName);
-}
 
 function validateGLSLDocument(document: vscode.TextDocument, extensionPath: string, diagnosticCollection: vscode.DiagnosticCollection, needTmp: boolean = false) {
 	let filePath = document.fileName;
@@ -189,40 +139,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(disposable);
 
-	try {
-		const gaRelativePath = getBinaryPath('glsl_analyzer');
-		console.log("glsl_analyzer Relative path:", gaRelativePath);
-		const gvRelativePath = getBinaryPath('glslangValidator');
-		console.log("glslangValidator Relative path:", gvRelativePath);
-		const binaryFullPath = path.join(context.extensionPath, gaRelativePath);
-		console.log("Attempting to start GLSL analyzer at", binaryFullPath);
-
-		const serverOptions: ServerOptions = {
-			command: binaryFullPath,
-			args: ['--stdio'],
-			options: {
-				cwd: context.extensionPath
-			}
-		};
-
-		const clientOptions: LanguageClientOptions = {
-			documentSelector: [{ scheme: 'file', language: 'glsl' }],
-			outputChannel: vscode.window.createOutputChannel('GLSL Analyzer Output')
-		};
-
-		const client = new LanguageClient(
-			'glslAnalyzer',
-			'GLSL Analyzer Server',
-			serverOptions,
-			clientOptions
-		);
-
-		context.subscriptions.push(client);
-		client.start();
-	} catch (err: any) {
-		console.error('Error launching glsl_analyzer:', err);
-		vscode.window.showErrorMessage(`glsl_analyzer launch failed: ${err.message}`);
-	}
+	// Call helper function to start a language client talking with a glsl_analyzer server
+	startLangClient(context);
 
 	const diagnosticCollection = vscode.languages.createDiagnosticCollection('glsl');
 	context.subscriptions.push(diagnosticCollection);
@@ -271,4 +189,6 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() { }
+export async function deactivate(): Promise<void> {
+	await stopLangClient();
+}
