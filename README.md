@@ -11,26 +11,35 @@ This extension is licensed under the [GNU General Public License v3.0](https://w
 
 During development, this extension calls external command-line tools (official released binaries) licensed under GPLv3 or GPLv3-compatible, which are included in the ./bin/ folder for convenience. These binaries are not bundled or distributed with the published extension.
 
-## Third-Party Binaries
-
-This extension uses the following third-party tools:
-
-- **glslangValidator** (BSD 3-Clause) — from [Khronos glslang](https://github.com/KhronosGroup/glslang)
-- **glsl_analyzer** (GPLv3) — from [glsl_analyzer](https://github.com/nolanderc/glsl_analyzer)
-
-Each binary's corresponding license can be found in the `bin/LICENSES/` folder.
-
-By using this extension, you acknowledge and accept the GPLv3 license terms for these components.
+This extension also incorporates third-party open-licensed source code. For details, see [Third-Party Components](#third-party-components) section.
 
 ## Features
 
-TBD
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+- Syntax highlighting.
+- Auto-complete.
+- Hovering tooltips.
+- (TBC.)
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+There are binary dependencies that need to be downloaded.
+
+- **glslangValidator**  
+    - Go to https://github.com/KhronosGroup/glslang/releases/tag/main-tot.
+    - Download the zipped binary corresponding to your platform.
+    - Unzip the binary, rename it as `glsl_analyzer-<arch>-<os>`, where 
+        - \<arch\> is one of `aarch64` and `x86_64`;
+        - \<os\> is one of `linux-musl`, `macos` and `windows`.
+    - Put it under `.\bin\glsl_analyzer`.
+
+- **glsl_analyzer**  
+    - Go to https://github.com/nolanderc/glsl_analyzer/releases.
+    - Download the zipped binary corresponding to your platform.
+    - Unzip the binary, rename it as `glslangValidator-<os>`, where
+        - \<os\> is one of `linux`, `osx` and `windows`.
+    - Put it under `.\bin\glslangValidator`.
+
+> Good news is these may be automated in future development.
 
 ## Extension Settings
 
@@ -45,23 +54,15 @@ This extension contributes the following settings:
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+TBD
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
+TBD
 
 ### 1.0.0
 
 Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
 
 ---
 
@@ -71,7 +72,26 @@ Ensure that you've read through the extensions guidelines and follow the best pr
 
 * [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
 
-## For more information
+## Third-Party Components
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+This extension includes third-party software, both binaries and source code, which are subject to their own licenses.
+
+### Binaries
+
+- **glslangValidator** (BSD 3-Clause)  
+  From [Khronos glslang](https://github.com/KhronosGroup/glslang).  
+  Included in the `./bin/` folder.  
+  License: `bin/LICENSES/glslangValidator.txt`
+
+- **glsl_analyzer** (GPLv3)  
+  From [glsl_analyzer](https://github.com/nolanderc/glsl_analyzer).  
+  Included in the `./bin/` folder.  
+  License: `bin/LICENSES/glsl_analyzer.txt`
+
+### Source Code
+
+- **glsl.json** (MIT)  
+  From the [Shiki TextMate Grammars](https://github.com/shikijs/textmate-grammars-themes).  
+  Used for GLSL syntax highlighting.  
+  Copyright (c) 2021 Shiki contributors  
+  License: [MIT](https://github.com/shikijs/textmate-grammars-themes/blob/main/LICENSE)
