@@ -1,6 +1,4 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
 import * as cp from 'child_process';
 
@@ -11,25 +9,39 @@ import { startLangClient, getClient, stopLangClient } from './langClient';
 const DEBOUNCE_DELAY = 500; // ms
 const VALIDATOR_KILL_TIMEOUT = 5000;
 
-function injectThreeJSBuiltIns(code: string): string {
-	const threeUniforms = `
+function injectThreeJSBuiltIns(code: string, shaderStage: string): string {
+	const commonVertexUniforms = `
+	uniform mat4 modelMatrix;
 	uniform mat4 modelViewMatrix;
 	uniform mat4 projectionMatrix;
+	uniform mat4 viewMatrix;
 	uniform mat3 normalMatrix;
+	uniform vec3 cameraPosition;
 
 	in vec3 position;
 	in vec3 normal;
 	in vec2 uv;
 	`;
 
-	return threeUniforms + '\n' + code;
+	const commonFragmentUniforms = `
+	uniform mat4 viewMatrix;
+	uniform vec3 cameraPosition;
+	`;
+
+	if (shaderStage === 'vert') {
+		return commonVertexUniforms + '\n' + code;
+	} else if (shaderStage === 'frag') {
+		return commonFragmentUniforms + '\n' + code;
+	} else {
+		return code;
+	}
 }
 
 function patchGlsl(code: string, shaderStage: string): string {
 	if (shaderStage === 'frag') {
-		return '#version 300 es\nprecision mediump float;\n' + injectThreeJSBuiltIns(code);
+		return '#version 300 es\nprecision mediump float;\n' + injectThreeJSBuiltIns(code, shaderStage);
 	} else {
-		return '#version 300 es\n' + injectThreeJSBuiltIns(code);
+		return '#version 300 es\n' + injectThreeJSBuiltIns(code, shaderStage);
 	}
 }
 
