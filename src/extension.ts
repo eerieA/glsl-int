@@ -11,39 +11,26 @@ import { startLangClient, getClient, stopLangClient } from './langClient';
 const DEBOUNCE_DELAY = 500; // ms
 const VALIDATOR_KILL_TIMEOUT = 5000;
 
-function validateGLSLDocument(document: vscode.TextDocument, extensionPath: string, diagnosticCollection: vscode.DiagnosticCollection, needTmp: boolean = false) {
-	let filePath = document.fileName;
-	const validatorPath = getBinaryPath('glslangValidator');
-	const validatorFullPath = path.join(extensionPath, validatorPath);
-	// console.log(`validatorFullPath: ${validatorFullPath}`);
+function injectThreeJSBuiltIns(code: string): string {
+	const threeUniforms = `
+	uniform mat4 modelViewMatrix;
+	uniform mat4 projectionMatrix;
+	uniform mat3 normalMatrix;
 
-	// if need temp file, like on document change but not save, save a temp file
-	// and use that file path for glslangValidator
-	// TODO: This probably going to be retired bcz we have the stdin version already
-	if (needTmp) {
-		const tmpDir = os.tmpdir();
-		const tmpPath = path.join(tmpDir, `vscode-glsl-${Date.now()}.vert`);
-		console.log(`tmpPath: ${tmpPath}`);
+	in vec3 position;
+	in vec3 normal;
+	in vec2 uv;
+	`;
 
-		// Write the current buffer text files stream to a temp file
-		fs.writeFileSync(tmpPath, document.getText(), 'utf8');
-		filePath = tmpPath;
+	return threeUniforms + '\n' + code;
+}
+
+function patchGlsl(code: string, shaderStage: string): string {
+	if (shaderStage === 'frag') {
+		return '#version 300 es\nprecision mediump float;\n' + injectThreeJSBuiltIns(code);
+	} else {
+		return '#version 300 es\n' + injectThreeJSBuiltIns(code);
 	}
-
-	const proc = cp.spawn(validatorFullPath, ['-S', guessShaderStage(filePath), filePath]);
-
-	let output = '';
-	proc.stdout.on('data', (data) => output += data.toString());
-	proc.stderr.on('data', (data) => output += data.toString());
-
-	proc.on('close', () => {
-		processValidatorOutput(document, output, diagnosticCollection);
-	});
-
-	proc.on('error', (err) => {
-		console.error('Failed to start glslangValidator process:', err);
-		vscode.window.showErrorMessage(`glslangValidator failed: ${err.message}`);
-	});
 }
 
 function validateGLSLDocumentViaStdin(
@@ -88,13 +75,19 @@ function validateGLSLDocumentViaStdin(
 	});
 
 	// Write the current in-memory text to stdin
-	proc.stdin.write(text);
+	if (!text.trim().startsWith('#version')) {
+		// Inject version if none detected
+		let patchedText = patchGlsl(text, shaderStage);
+		proc.stdin.write(patchedText);
+	} else {
+		proc.stdin.write(text);
+	}
 	proc.stdin.end();
 }
 
 function guessShaderStage(filePath: string): string {
-	if (filePath.endsWith('.vert')) return 'vert';
-	if (filePath.endsWith('.frag')) return 'frag';
+	if (filePath.endsWith('.vert') || filePath.endsWith('vs.glsl')) return 'vert';
+	if (filePath.endsWith('.frag') || filePath.endsWith('fs.glsl')) return 'frag';
 	if (filePath.endsWith('.comp')) return 'comp';
 	return 'frag'; // default
 }
@@ -150,7 +143,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// Validate all open GLSL files at startup
 	vscode.workspace.textDocuments.forEach((doc) => {
 		if (doc.languageId === 'glsl') {
-			validateGLSLDocument(doc, context.extensionPath, diagnosticCollection);
+			validateGLSLDocumentViaStdin(doc, context.extensionPath, diagnosticCollection, VALIDATOR_KILL_TIMEOUT);
 		}
 	});
 
@@ -159,7 +152,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.workspace.onDidOpenTextDocument((doc) => {
 			if (doc.languageId === 'glsl') {
-				validateGLSLDocument(doc, context.extensionPath, diagnosticCollection);
+				validateGLSLDocumentViaStdin(doc, context.extensionPath, diagnosticCollection, VALIDATOR_KILL_TIMEOUT);
 			}
 		})
 	);
@@ -168,7 +161,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.workspace.onDidSaveTextDocument((doc) => {
 			if (doc.languageId === 'glsl') {
-				validateGLSLDocument(doc, context.extensionPath, diagnosticCollection);
+				validateGLSLDocumentViaStdin(doc, context.extensionPath, diagnosticCollection, VALIDATOR_KILL_TIMEOUT);
 			}
 		})
 	);
