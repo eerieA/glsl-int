@@ -18,6 +18,10 @@ This extension also incorporates third-party open-licensed source code. For deta
 - Syntax highlighting.
 - Auto-complete.
 - Hovering tooltips.
+- Formatting.
+- Fatal error red squiggles.
+- Recognizing [three.js built-in uniforms](https://threejs.org/docs/#api/en/renderers/webgl/WebGLProgram).
+- Compatible with GLSL 3.00 for WebGL 2.0.
 - (TBC.)
 
 ## Requirements
@@ -54,7 +58,13 @@ This extension contributes the following settings:
 
 ## Known Issues
 
-TBD
+Not compatible with GLSL 1.00 (#version 100). So if a shader file has older version keywords like `varying`, or deprecated functions like `texture2D`, or deprecated output varying variables like `gl_FragColor`, this extension will report errors. Here is a table with some example differences between the two versions.
+
+| GLSL Version Directive | GLSL ES Version | Used With   | Key Features  |
+|------------------------|-----------------|-------------|---------------|
+| #version 100         | GLSL ES 1.00     | WebGL 1.0   | Uses `attribute`/`varying`, `texture2D()`, `gl_FragColor`, no `in`/`out`    |
+| #version 300 es      | GLSL ES 3.00     | WebGL 2.0   | Uses `in`/`out`, `layout` qualifiers, `texture()` (replaces `texture2D()`), `gl_FragColor` removed, more modern syntax and features |
+
 
 ## Release Notes
 
@@ -66,9 +76,9 @@ Initial release of ...
 
 ---
 
-## Following extension guidelines
+## Extension guidelines
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+This extension follows the best practices for creating VSCode extensions.
 
 * [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
 
