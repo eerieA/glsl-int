@@ -1,6 +1,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as cp from 'child_process';
+import * as fs from 'fs';
+import * as os from 'os';
+import { Readable } from 'stream';
+import { fetch } from 'undici';
+import * as unzipper from 'unzipper';
 
 import { getBinaryPath } from './utils/utils';
 import { DebounceManager } from './utils/debounceManager';
@@ -8,6 +13,107 @@ import { startLangClient, getClient, stopLangClient } from './langClient';
 
 const DEBOUNCE_DELAY = 500; // ms
 const VALIDATOR_KILL_TIMEOUT = 5000;
+
+async function setupBinaries(extensionPath: string): Promise<void> {
+	const archMap: Record<string, string> = {
+		'x64': 'x86_64',
+		'arm64': 'aarch64',
+	};
+
+	const osMap: Record<string, string> = {
+		'linux': 'linux-musl',
+		'darwin': 'macos',
+		'win32': 'windows',
+	};
+
+	const platform = os.platform(); // 'win32' | 'linux' | 'darwin'
+	const arch = os.arch();         // 'x64' | 'arm64'
+
+	// TODO: glslang binary releases use different mapping such as "osx" not "macos"
+	const mappedArch = archMap[arch];
+	const mappedOS = osMap[platform];
+
+	if (!mappedArch || !mappedOS) {
+		vscode.window.showErrorMessage(`Unsupported platform or architecture: ${platform} ${arch}`);
+		return;
+	}
+
+	const binDir = path.join(extensionPath, 'bin');
+
+	const glslangValidatorSource = `bin/glslangValidator${platform === 'win32' ? '.exe' : ''}`;
+	const glslangValidatorTarget = path.join(binDir, 'glslangValidator', `glslangValidator-${mappedOS}${platform === 'win32' ? '.exe' : ''}`);
+	const glslAnalyzerSource = `bin/glsl_analyzer${platform === 'win32' ? '.exe' : ''}`;
+	const glslAnalyzerTarget = path.join(binDir, 'glsl_analyzer', `glsl_analyzer-${mappedArch}-${mappedOS}${platform === 'win32' ? '.exe' : ''}`);
+	// console.log("glslangValidatorSource:", glslangValidatorSource);
+	// console.log("glslangValidatorTarget:", glslangValidatorTarget);
+	// console.log("glslangValidator test url:", `https://github.com/KhronosGroup/glslang/releases/download/main-tot/glslang-${platform === 'win32' ? 'master' : 'main'}-${mappedOS}-Release.zip`);
+	// console.log("glslAnalyzerSource:", glslAnalyzerSource);
+	// console.log("glslAnalyzerTarget:", glslAnalyzerTarget);
+	// console.log("glslAnalyzer test url:", `https://github.com/nolanderc/glsl_analyzer/releases/download/v1.6.0/${mappedArch}-${mappedOS}.zip`);
+
+	// Check glslangValidator
+	await ensureBinaryExists(glslangValidatorTarget, () =>
+		downloadAndExtract(
+			`https://github.com/KhronosGroup/glslang/releases/download/main-tot/glslang-${platform === 'win32' ? 'master' : 'main'}-${mappedOS}-Release.zip`,
+			glslangValidatorTarget,
+			glslangValidatorSource
+		)
+	);
+
+	// Check glsl_analyzer
+	await ensureBinaryExists(glslAnalyzerTarget, () =>
+		downloadAndExtract(
+			`https://github.com/nolanderc/glsl_analyzer/releases/download/v1.6.0/${mappedArch}-${mappedOS}.zip`,
+			glslAnalyzerTarget,
+			glslAnalyzerSource
+		)
+	);
+}
+
+async function ensureBinaryExists(binaryPath: string, onMissing: () => Promise<void>) {
+	if (fs.existsSync(binaryPath)) {
+		console.log(`${binaryPath} exists, great.`);
+		return
+	};
+
+	console.log(`${binaryPath} does not exist, procure it.`);
+
+	fs.mkdirSync(path.dirname(binaryPath), { recursive: true });
+	await onMissing();
+	fs.chmodSync(binaryPath, 0o755);
+}
+
+async function downloadAndExtract(zipUrl: string, extractToPath: string, sourcePath: string): Promise<void> {
+	const res = await fetch(zipUrl, { redirect: 'follow' });
+
+	if (!res.ok || !res.body) {
+		throw new Error(`Failed to download from ${zipUrl}: ${res.status}`);
+	}
+
+	const nodeReadable = Readable.fromWeb(res.body);	// Have to convert to a Node Readable
+
+	await new Promise<void>((resolve, reject) => {
+		nodeReadable
+			.pipe(unzipper.Parse())
+			.on('entry', async (entry) => {
+				const filePath = entry.path.replace(/\\/g, '/'); // Normalize to forward slashes
+
+				if (filePath.endsWith(sourcePath)) {
+					// Extract only the target file if there are subfolders, e.g. in the case of glslangValidator
+					entry.pipe(fs.createWriteStream(extractToPath))
+						.on('finish', resolve)
+						.on('error', reject);
+				} else {
+					// Skip all others
+					entry.autodrain();
+				}
+			})
+			.on('error', reject)
+			.on('close', () => {
+				reject(new Error(`File not found in archive.`));
+			});
+	});
+}
 
 function injectThreeJSBuiltIns(code: string, shaderStage: string): string {
 	const commonVertexUniforms = `
@@ -129,9 +235,9 @@ function processValidatorOutput(
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 
-	console.log('Congratulations, your extension "glsl-int" is now active!');
+	console.log('Congratulations, your extension "glsl-int" is now active AAAA!');
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
@@ -143,6 +249,15 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(disposable);
+
+	// Automatic download binaries if not exist, bcz we do not bundle the binarie in this extension.
+	try {
+		await setupBinaries(context.extensionPath);
+		console.log('Binary setup complete.');
+	} catch (err) {
+		console.error('Failed to setup binaries:', err);
+		vscode.window.showErrorMessage(`glsl-int failed to set up binaries: ${(err as Error).message}`);
+	}
 
 	// Call helper function to start a language client talking with a glsl_analyzer server
 	startLangClient(context);

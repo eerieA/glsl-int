@@ -35,7 +35,12 @@ async function main() {
 		sourcesContent: false,
 		platform: 'node',
 		outfile: 'dist/extension.js',
-		external: ['vscode'],
+		external: [
+			'vscode',
+			'unzipper',                 // leave unzipper to be loaded at runtime
+			'undici',                   // leave undici to be loaded at runtime
+			'stream',                   // for Node streams
+		],
 		logLevel: 'silent',
 		plugins: [
 			/* add to the end of plugins array */
